@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Smart Room Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- MQTT JS (Eclipse Paho) -->
+  <script src="https://unpkg.com/paho-mqtt/mqttws31.min.js"></script>
+
+  <!-- Chart.js 用来画折线图 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div class="app">
+    <!-- 顶部标题栏 -->
+    <header class="header">
+      <div>
+        <h1>Smart Room Dashboard</h1>
+        <p>MKR1010 &amp; MQTT &amp; TFT &amp; Sensors</p>
+      </div>
+      <div class="header-status">
+        <div class="status-pill" id="mqtt-status-pill">
+          <span class="dot dot--disconnected"></span>
+          <span id="mqtt-status-text">MQTT 连接中...</span>
+        </div>
+        <div class="status-pill" id="presence-pill">
+          <span class="dot dot--disconnected"></span>
+          <span id="presence-text">Human: Unknown</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主内容：左边是当前数据卡片 + 状态，右边是折线图 -->
+    <main class="main">
+      <!-- 左侧：当前数据卡片 -->
+      <section class="cards">
+        <!-- 环境数据 -->
+        <article class="card card-main">
+          <div class="card-header">
+            <h2>环境数据</h2>
+            <span class="tag tag--live">LIVE</span>
+          </div>
+
+          <div class="grid grid-2">
+            <div class="metric">
+              <div class="metric-label">温度</div>
+              <div class="metric-value">
+                <span id="temp-value">--</span>
+                <span class="metric-unit">°C</span>
+              </div>
+            </div>
+
+            <div class="metric">
+              <div class="metric-label">湿度</div>
+              <div class="metric-value">
+                <span id="hum-value">--</span>
+                <span class="metric-unit">%</span>
+              </div>
+            </div>
+
+            <div class="metric">
+              <div class="metric-label">CO₂</div>
+              <div class="metric-value">
+                <span id="co2-value">--</span>
+                <span class="metric-unit">ppm</span>
+              </div>
+              <div class="metric-sub" id="co2-status-text">等待数据...</div>
+            </div>
+
+            <div class="metric">
+              <div class="metric-label">光照 (raw)</div>
+              <div class="metric-value">
+                <span id="light-value">--</span>
+              </div>
+            </div>
+
+            <div class="metric">
+              <div class="metric-label">声音强度</div>
+              <div class="metric-value">
+                <span id="sound-value">--</span>
+              </div>
+              <div class="sound-bar">
+                <div class="sound-bar-fill" id="sound-bar-fill"></div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- 设备状态 (FAN / FIRE / CURTAIN / BUZZER) -->
+        <article class="card">
+          <div class="card-header">
+            <h2>设备状态</h2>
+          </div>
+
+          <div class="device-status-grid">
+            <!-- FAN -->
+            <div class="device-card" id="fan-card">
+              <div class="device-title">风扇</div>
+              <div class="device-state" id="fan-state">--</div>
+              <div class="device-sub" id="fan-source">source: --</div>
+            </div>
+
+            <!-- FIRE -->
+            <div class="device-card" id="fire-card">
+              <div class="device-title">火焰报警</div>
+              <div class="device-state" id="fire-state">--</div>
+              <div class="device-sub" id="fire-subtext">安全状态未知</div>
+            </div>
+
+            <!-- CURTAIN -->
+            <div class="device-card" id="curtain-card">
+              <div class="device-title">窗帘</div>
+              <div class="device-state" id="curtain-state">--</div>
+              <div class="device-sub" id="curtain-subtext">等待指令</div>
+            </div>
+
+            <!-- BUZZER -->
+            <div class="device-card" id="buzzer-card">
+              <div class="device-title">蜂鸣器</div>
+              <div class="device-state" id="buzzer-state">--</div>
+              <div class="device-sub" id="buzzer-subtext">无报警</div>
+            </div>
+          </div>
+        </article>
+
+        <!-- 原始 JSON -->
+        <article class="card card-json">
+          <div class="card-header">
+            <h2>最新原始数据</h2>
+          </div>
+          <pre id="raw-json">等待 MQTT 消息...</pre>
+        </article>
+      </section>
+
+      <!-- 右侧：历史曲线 -->
+      <section class="charts">
+        <article class="card">
+          <div class="card-header">
+            <h2>温度 / 湿度 / CO₂ 历史</h2>
+          </div>
+          <canvas id="env-chart"></canvas>
+        </article>
+
+        <article class="card">
+          <div class="card-header">
+            <h2>声音强度历史</h2>
+          </div>
+          <canvas id="sound-chart"></canvas>
+        </article>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>MQTT Broker: mqtt.cetools.org</span>
+      <span>Topic: student/MUJI/HZH</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

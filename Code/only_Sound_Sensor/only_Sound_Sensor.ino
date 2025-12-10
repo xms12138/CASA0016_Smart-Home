@@ -2,7 +2,7 @@
 // Triggers alarm only if most of the last 5 seconds are loud.
 // Short quiet gaps in music will be ignored.
 
-const int SOUND_PIN = A1;
+const int SOUND_PIN = A2;
 
 // Baseline drift factor
 float baselineAlpha = 0.98;
@@ -13,7 +13,7 @@ int loudThreshold = 10;
 // 5-second window settings
 const int SAMPLE_INTERVAL_MS      = 100;   // one check every 100 ms
 const int WINDOW_5S_SAMPLES       = 50;    // 5 seconds / 0.1s = 50 samples
-const float NOISE_FRACTION_THRESH = 0.40;  // at least 60% of time must be loud
+const float NOISE_FRACTION_THRESH = 0.60;  // at least 60% of time must be loud
 
 float baseline = 0;
 
