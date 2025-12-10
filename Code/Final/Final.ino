@@ -447,6 +447,7 @@ void loop() {
   drawSoundStatus(soundLevel);
   drawCurtainStatus(curtainState);
 
+
   String payload = "{";
   payload += "\"presence\":" + String(human ? "true" : "false") + ",";
   payload += "\"co2\":" + String(latestCO2, 2) + ",";
