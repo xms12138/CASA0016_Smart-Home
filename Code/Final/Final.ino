@@ -9,6 +9,8 @@
 
 char ssid[] = "5339 Hyperoptic Fibre Broadband";
 char pass[] = "3F38ikCLBkgT";
+// char ssid[] = "CE-Hub-Student"; 
+// char pass[] = "casa-ce-gagarin-public-service";
 
 const char* mqttServer = "mqtt.cetools.org";
 const int mqttPort = 1884;
@@ -22,49 +24,176 @@ PubSubClient mqttClient(wifiClient);
 
 TFT_eSPI tft = TFT_eSPI();
 
-#define COLOR_TITLE TFT_CYAN
-#define COLOR_VALUE TFT_WHITE
+#define COLOR_TITLE   TFT_CYAN
+#define COLOR_VALUE   TFT_WHITE
 #define COLOR_SECTION TFT_YELLOW
-#define COLOR_LINE TFT_DARKGREY
+#define COLOR_LINE    TFT_DARKGREY
 
 Adafruit_MLX90640 mlx;
-Adafruit_SCD30 scd30;
-Servo curtainServo;
+Adafruit_SCD30   scd30;
+Servo            curtainServo;
 
-float frame[32 * 24];
+float frame[32 * 24];          // 768 pixels (24x32)
 
-const float TEMP_DELTA_THRESHOLD = 3.5;
-const int MIN_HOT_PIXELS = 8;
+// ----------- Advanced presence detection parameters (tunable) -----------
+const float Z_THRESHOLD          = 2.3f;   // z-score threshold: higher = more conservative
+const float MIN_GLOBAL_DELTA     = 3.0f;   // (maxT - mean) minimum difference required
+const int   MIN_PIXELS_PER_BLOCK = 2;      // minimum hot pixels within each 4x4 block
+const int   MIN_HOT_BLOCKS       = 3;      // minimum number of blocks meeting criteria
+// Temporal smoothing
+const int   MAX_SCORE            = 6;      // upper bound on stability score
+const int   STABLE_SCORE         = 3;      // threshold above which presence is confirmed
+// -----------------------------------------------------------------------
 
-const int FAN_PIN = 7;
+int presenceScore = 0;           // score accumulator for temporal smoothing
 
+// Image size and block partitioning
+const int IMG_W = 32;
+const int IMG_H = 24;
+const int BLOCK_W = 8;
+const int BLOCK_H = 6;
+const int BLOCK_SIZE_X = IMG_W / BLOCK_W;  // 4 pixels per block (horizontal)
+const int BLOCK_SIZE_Y = IMG_H / BLOCK_H;  // 4 pixels per block (vertical)
+
+// Single-frame advanced human detection
+bool detectHumanFrame(const float *f) {
+  // 1. Compute mean, standard deviation, and max temperature
+  float sum  = 0.0f;
+  float var  = 0.0f;
+  float maxT = -1000.0f;
+
+  for (int i = 0; i < IMG_W * IMG_H; i++) {
+    float t = f[i];
+    sum += t;
+    if (t > maxT) maxT = t;
+  }
+
+  float mean = sum / (IMG_W * IMG_H);
+
+  // Compute variance
+  for (int i = 0; i < IMG_W * IMG_H; i++) {
+    float diff = f[i] - mean;
+    var += diff * diff;
+  }
+
+  float stdDev = sqrtf(var / (IMG_W * IMG_H) + 1e-6f);
+
+  // 2. Mark candidate "hot pixels" based on z-score
+  static uint8_t hotMask[IMG_W * IMG_H];  // 768 bytes OK for MKR1010
+  int totalHotPixels = 0;
+
+  for (int i = 0; i < IMG_W * IMG_H; i++) {
+    float z = (f[i] - mean) / stdDev;
+    if (z > Z_THRESHOLD) {
+      hotMask[i] = 1;
+      totalHotPixels++;
+    } else {
+      hotMask[i] = 0;
+    }
+  }
+
+  // 3. Spatial clustering using 4x4 blocks
+  int hotBlocks = 0;
+
+  for (int by = 0; by < BLOCK_H; by++) {
+    for (int bx = 0; bx < BLOCK_W; bx++) {
+      int blockHot = 0;
+
+      // Iterate through all pixels in a block
+      for (int dy = 0; dy < BLOCK_SIZE_Y; dy++) {
+        for (int dx = 0; dx < BLOCK_SIZE_X; dx++) {
+          int x = bx * BLOCK_SIZE_X + dx;
+          int y = by * BLOCK_SIZE_Y + dy;
+          int idx = y * IMG_W + x;
+          if (hotMask[idx]) {
+            blockHot++;
+          }
+        }
+      }
+
+      if (blockHot >= MIN_PIXELS_PER_BLOCK) {
+        hotBlocks++;
+      }
+    }
+  }
+
+  // 4. Global sanity check: prevents false positives when entire room warms evenly
+  bool framePresence = (hotBlocks >= MIN_HOT_BLOCKS) &&
+                       ((maxT - mean) > MIN_GLOBAL_DELTA);
+
+  // Debug output
+  Serial.print("mean=");
+  Serial.print(mean, 2);
+  Serial.print(" max=");
+  Serial.print(maxT, 2);
+  Serial.print(" hotPixels=");
+  Serial.print(totalHotPixels);
+  Serial.print(" hotBlocks=");
+  Serial.print(hotBlocks);
+  Serial.print(" framePresence=");
+  Serial.println(framePresence ? "YES" : "NO");
+
+  return framePresence;
+}
+
+// Multi-frame temporal smoothing + final decision
+bool updatePresence() {
+  int status = mlx.getFrame(frame);
+  if (status != 0) {
+    Serial.print("getFrame error: ");
+    Serial.println(status);
+    return false;
+  }
+
+  bool framePresence = detectHumanFrame(frame);
+
+  // Smoothing: ramp score up/down based on consecutive detections
+  if (framePresence) {
+    if (presenceScore < MAX_SCORE) presenceScore++;
+  } else {
+    if (presenceScore > 0) presenceScore--;
+  }
+
+  bool presence = (presenceScore >= STABLE_SCORE);
+
+  Serial.print("presenceScore=");
+  Serial.print(presenceScore);
+  Serial.print(" -> presence=");
+  Serial.println(presence ? "YES" : "NO");
+
+  return presence;
+}
+
+// ------------------------- Other device config -------------------------
+
+const int FAN_PIN   = 7;
 const int LIGHT_PIN = A1;
 const int LIGHT_THRESHOLD = 600;
 const int SERVO_PIN = 6;
-
 const int FLAME_PIN = 2;
-
 const int BUZZER_PIN = 5;
 
 float latestCO2 = NAN;
 bool hasCO2 = false;
 
-int currentServoAngle = -1;
+int  currentServoAngle = -1;
 
-bool buzzerOn = false;
+bool         buzzerOn = false;
 unsigned long buzzerStartMillis = 0;
-bool lastFireDetected = false;
+bool         lastFireDetected = false;
 
 int remoteFanMode = -1;
 
 const int SOUND_PIN = A2;
 float baselineAlpha = 0.98;
-float soundAlpha = 0.85;
-float baseline = 0;
-int soundLevel = 0;
+float soundAlpha    = 0.85;
+float baseline      = 0;
+int   soundLevel    = 0;
 
-unsigned long lastSampleTime = 0;
-const int SAMPLE_INTERVAL_MS = 100;
+unsigned long lastSampleTime      = 0;
+const int     SAMPLE_INTERVAL_MS  = 100;
+
+// ------------------------- Utility functions ---------------------------
 
 int readFastAverage(int samples = 20) {
   long s = 0;
@@ -73,37 +202,6 @@ int readFastAverage(int samples = 20) {
     delay(2);
   }
   return (int)(s / samples);
-}
-
-bool detectHuman(const float *f) {
-  float sum = 0.0;
-  float minT = 0x7FFFFFFF;
-  float maxT = -0x7FFFFFFF;
-
-  for (int i = 0; i < 32 * 24; i++) {
-    float t = f[i];
-    sum += t;
-    if (t < minT) minT = t;
-    if (t > maxT) maxT = t;
-  }
-
-  float avg = sum / (32.0 * 24.0);
-  float threshold = avg + TEMP_DELTA_THRESHOLD;
-
-  int hotPixels = 0;
-  for (int i = 0; i < 768; i++) {
-    if (f[i] > threshold) hotPixels++;
-  }
-
-  bool presence = (hotPixels >= MIN_HOT_PIXELS) && ((maxT - avg) > TEMP_DELTA_THRESHOLD);
-
-  Serial.print("IR avg="); Serial.print(avg, 2);
-  Serial.print("  max="); Serial.print(maxT, 2);
-  Serial.print("  hotPixels="); Serial.print(hotPixels);
-  Serial.print("  presence=");
-  Serial.println(presence ? "YES" : "NO");
-
-  return presence;
 }
 
 void drawBaseLayout() {
@@ -117,23 +215,24 @@ void drawBaseLayout() {
   tft.drawString("MAIN DATA", 10, 40, 2);
 
   int cellW = 480 / 4;
-  tft.drawRect(0, 230, cellW, 90, COLOR_LINE);
-  tft.drawRect(cellW, 230, cellW, 90, COLOR_LINE);
-  tft.drawRect(cellW * 2, 230, cellW, 90, COLOR_LINE);
-  tft.drawRect(cellW * 3, 230, cellW, 90, COLOR_LINE);
+  tft.drawRect(0,        230, cellW, 90, COLOR_LINE);
+  tft.drawRect(cellW,    230, cellW, 90, COLOR_LINE);
+  tft.drawRect(cellW * 2,230, cellW, 90, COLOR_LINE);
+  tft.drawRect(cellW * 3,230, cellW, 90, COLOR_LINE);
 
   tft.setTextColor(COLOR_SECTION, TFT_BLACK);
-  tft.drawCentreString("FAN", cellW / 2, 235, 2);
-  tft.drawCentreString("FIRE", cellW + cellW / 2, 235, 2);
-  tft.drawCentreString("SOUND", cellW * 2 + cellW / 2, 235, 2);
+  tft.drawCentreString("FAN",     cellW / 2,          235, 2);
+  tft.drawCentreString("FIRE",    cellW + cellW / 2,  235, 2);
+  tft.drawCentreString("SOUND",   cellW * 2 + cellW / 2, 235, 2);
   tft.drawCentreString("CURTAIN", cellW * 3 + cellW / 2, 235, 2);
 }
 
-void updateMainDataPanel(bool human, bool hasCO2, float co2, float temp, float humidity, int lightRaw, int soundLevel) {
+void updateMainDataPanel(bool human, bool hasCO2, float co2, float temp,
+                         float humidity, int lightRaw, int soundLevel) {
   int xLabel = 15;
   int xValue = 170;
   int yStart = 65;
-  int lineH = 25;
+  int lineH  = 25;
 
   tft.fillRect(10, 60, 460, 165, TFT_BLACK);
   tft.setTextColor(COLOR_VALUE, TFT_BLACK);
@@ -232,14 +331,16 @@ void drawCurtainStatus(const String &curtainState) {
   tft.fillRect(x + 2, y, w - 4, h, TFT_BLACK);
 
   uint16_t color;
-  if (curtainState == "open") color = TFT_CYAN;
-  else if (curtainState == "close") color = TFT_DARKGREY;
-  else color = TFT_YELLOW;
+  if (curtainState == "open")      color = TFT_CYAN;
+  else if (curtainState == "close")color = TFT_DARKGREY;
+  else                             color = TFT_YELLOW;
 
   tft.fillRoundRect(x + 10, y + 5, w - 20, 20, 4, color);
   tft.setTextColor(TFT_BLACK, color);
   tft.drawCentreString(curtainState, x + w / 2, y + 8, 2);
 }
+
+// ------------------------- MQTT & WiFi --------------------------
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String t = String(topic);
@@ -255,8 +356,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println(msg);
 
   if (t == String(mqttCmdFanTopic)) {
-    if (msg.equalsIgnoreCase("on")) remoteFanMode = 1;
-    else if (msg.equalsIgnoreCase("off")) remoteFanMode = 0;
+    if (msg.equalsIgnoreCase("on"))      remoteFanMode = 1;
+    else if (msg.equalsIgnoreCase("off"))remoteFanMode = 0;
   }
 }
 
@@ -287,6 +388,8 @@ void connectMQTT() {
   }
 }
 
+// ----------------------------- setup ----------------------------
+
 void setup() {
   Serial.begin(115200);
   delay(2000);
@@ -315,7 +418,7 @@ void setup() {
 
   scd30.begin();
 
-  pinMode(FAN_PIN, OUTPUT);
+  pinMode(FAN_PIN,   OUTPUT);
   pinMode(LIGHT_PIN, INPUT);
   pinMode(FLAME_PIN, INPUT);
   pinMode(BUZZER_PIN, OUTPUT);
@@ -329,6 +432,8 @@ void setup() {
   soundLevel = 0;
   lastSampleTime = millis();
 }
+
+// ----------------------------- loop -----------------------------
 
 void loop() {
   if (!mqttClient.connected()) connectMQTT();
@@ -349,14 +454,10 @@ void loop() {
     Serial.println(soundLevel);
   }
 
-  int status = mlx.getFrame(frame);
-  if (status != 0) {
-    delay(250);
-    return;
-  }
+  // ---- Advanced human presence detection (uses MLX + frame internally) ----
+  bool human = updatePresence();
 
-  bool human = detectHuman(frame);
-
+  // ---- SCD30 CO2 / Temp / Humidity ----
   if (scd30.dataReady()) {
     scd30.read();
     latestCO2 = scd30.CO2;
@@ -364,25 +465,28 @@ void loop() {
   }
 
   if (hasCO2) {
-    Serial.print("CO2 = "); Serial.println(latestCO2);
+    Serial.print("CO2 = ");         Serial.println(latestCO2);
     Serial.print("Temperature = "); Serial.println(scd30.temperature);
-    Serial.print("Humidity = "); Serial.println(scd30.relative_humidity);
+    Serial.print("Humidity = ");    Serial.println(scd30.relative_humidity);
   }
 
-  bool fanOn = false;
+  // ---- Fan logic (CO2 / temp driven, with remote override when no human) ----
+  bool   fanOn    = false;
   String fanSource = "auto";
 
   if (human) {
+    // Local presence: ignore remote override
     remoteFanMode = -1;
     if (hasCO2 && (latestCO2 > 5000.0 || scd30.temperature > 29.0)) {
       fanOn = true;
     }
   } else {
+    // No human detected: remote override allowed
     if (remoteFanMode == 1) {
-      fanOn = true;
+      fanOn    = true;
       fanSource = "remote";
     } else if (remoteFanMode == 0) {
-      fanOn = false;
+      fanOn    = false;
       fanSource = "remote";
     }
   }
@@ -393,6 +497,7 @@ void loop() {
   Serial.print("  source=");
   Serial.println(fanSource);
 
+  // ---- Light + curtain control ----
   int lightRaw = analogRead(LIGHT_PIN);
   Serial.print("Light raw = "); Serial.println(lightRaw);
 
@@ -418,6 +523,7 @@ void loop() {
     curtainState = "unchanged";
   }
 
+  // ---- Flame sensor + buzzer ----
   bool fireDetected = (digitalRead(FLAME_PIN) == HIGH);
   Serial.print("Fire: "); Serial.println(fireDetected ? "YES" : "NO");
 
@@ -434,6 +540,7 @@ void loop() {
 
   lastFireDetected = fireDetected;
 
+  // ---- TFT UI update ----
   updateMainDataPanel(human,
                       hasCO2,
                       latestCO2,
@@ -447,24 +554,24 @@ void loop() {
   drawSoundStatus(soundLevel);
   drawCurtainStatus(curtainState);
 
-
+  // ---- MQTT JSON payload ----
   String payload = "{";
-  payload += "\"presence\":" + String(human ? "true" : "false") + ",";
-  payload += "\"co2\":" + String(latestCO2, 2) + ",";
-  payload += "\"temperature\":" + String(scd30.temperature, 2) + ",";
-  payload += "\"humidity\":" + String(scd30.relative_humidity, 2) + ",";
-  payload += "\"fan\":" + String(fanOn ? "true" : "false") + ",";
+  payload += "\"presence\":"     + String(human ? "true" : "false") + ",";
+  payload += "\"co2\":"          + String(latestCO2, 2) + ",";
+  payload += "\"temperature\":"  + String(scd30.temperature, 2) + ",";
+  payload += "\"humidity\":"     + String(scd30.relative_humidity, 2) + ",";
+  payload += "\"fan\":"          + String(fanOn ? "true" : "false") + ",";
   payload += "\"fan_source\":\"" + fanSource + "\",";
-  payload += "\"light\":" + String(lightRaw) + ",";
-  payload += "\"curtain\":\"" + curtainState + "\",";
-  payload += "\"fire\":" + String(fireDetected ? "true" : "false") + ",";
-  payload += "\"buzzer\":" + String(buzzerOn ? "true" : "false") + ",";
-  payload += "\"sound_level\":" + String(soundLevel);
+  payload += "\"light\":"        + String(lightRaw) + ",";
+  payload += "\"curtain\":\""    + curtainState + "\",";
+  payload += "\"fire\":"         + String(fireDetected ? "true" : "false") + ",";
+  payload += "\"buzzer\":"       + String(buzzerOn ? "true" : "false") + ",";
+  payload += "\"sound_level\":"  + String(soundLevel);
   payload += "}";
 
   mqttClient.publish(mqttTopic, payload.c_str());
   Serial.println("MQTT Sent:");
   Serial.println(payload);
 
-  delay(250);
+  delay(250);  // roughly matches MLX 4 FPS
 }
