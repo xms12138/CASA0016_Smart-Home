@@ -1,7 +1,26 @@
-# CASA0016_Smart-Home
-# Smart Room Dashboard
 
-**An IoT-based intelligent room monitoring and automation system powered by Arduino MKR WiFi 1010, thermal imaging, environmental sensors, local visualization, and MQTT integration.**
+
+# 🏡 HomeCare Assist  
+
+Smart-Home Prototype for Elderly Comfort & Safety  
+> A lightweight Arduino-based system for indoor comfort monitoring and automated actuation.
+
+---
+
+## ✨ Overview  
+**HomeCare Assist** is a room-level smart prototype designed to support **elderly individuals living alone**, helping them maintain a safer and more comfortable indoor environment—**without cameras, wearables, or user intervention**.
+
+The system continuously monitors:
+- Indoor **CO₂ / temperature / humidity**
+- Indoor & outdoor **light levels**
+- **Thermal-based occupancy** 
+- Potential **fire hazards**
+
+And automatically:
+- Opens/closes curtains based on natural light
+- Activates ventilation when air quality/temperature rises
+- Triggers alarms when fire is detected
+- Publishes live data via **MQTT** for remote monitoring & manual control
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/appearance.jpg" width="75%">
@@ -9,243 +28,210 @@
   <strong>Figure 1.</strong> Physical Prototype Overview
 </p>
 
+---
+
+## 🧩 Key Features  
+- ✅ Privacy-friendly **thermal presence detection** (no camera)
+- ✅ Real-time **multi-sensor monitoring**
+- ✅ **Automatic ventilation & curtain control**
+- ✅ **MQTT remote supervision + manual override**
+- ✅ Local **TFT dashboard UI**
+- ✅ Low-power design (suitable for standalone power bank)
+
+---
+
+## 🛠 Hardware Used  
+| Component                       | Purpose                                 |
+| ------------------------------- | --------------------------------------- |
+| Arduino MKR WiFi 1010           | Main controller, WiFi connectivity      |
+| MLX90640 (32×24 Thermal Camera) | Human presence detection                |
+| SCD30                           | CO₂ + Temperature + Humidity monitoring |
+| Light sensor (LDR)              | Ambient light measurement               |
+| Flame sensor                    | Fire detection                          |
+| MG90S Servo                     | Simulated curtain control               |
+| 5V Fan                          | Auto / remote ventilation               |
+| TFT_eSPI Display (480×320)      | On-device dashboard UI                  |
+
+---
+
+## 🧱 System Architecture  
+
+The system runs on an Arduino MKR WiFi 1010 and integrates five key modules:
+
+ MLX90640 for thermal presence detection, SCD30 for CO₂/temperature/humidity, an LDR for light sensing, a flame sensor for fire detection, and actuators including a PWM-controlled fan and a servo-driven curtain. All readings are displayed locally on a TFT screen and trigger automatic responses. The circuit diagram is as follows:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/circuit_diagram.png" width="75%">
+  <br>
+  <strong>Figure 2.</strong> Circuit Diagram
+</p>
+
+The component diagram is as follows:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/components.png" width="75%">
+  <br>
+  <strong>Figure 3.</strong> Components Diagram
+</p>
 
 ------
 
-## 📌 Overview
+## 🧪 Software Logic and Core Function
 
-**Smart Room Dashboard** is a fully integrated smart-environment system designed to detect human presence, evaluate indoor air quality, monitor environmental risks, and automatically control room actuators such as a fan, curtain servo, and buzzer alarm.
+The system first determines occupancy using the thermal imager. If empty, all actuators stay idle. When occupied, rule-based thresholds control devices: CO₂ and temperature trigger the fan, light opens the curtains, and a flame event raises an alarm. This ensures predictable behaviour across all sensors. The workflow diagram is as follows:
 
-The system runs on an **Arduino MKR WiFi 1010**, combines multiple sensors including **thermal imaging (MLX90640)** and **CO₂/temperature/humidity (SCD30)**, and presents real-time room status on a **TFT display** while sending structured JSON data to an MQTT server. It also accepts remote fan-control commands from mobile or cloud applications.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/system flowchart.png" width="75%">
+  <br>
+  <strong>Figure 4.</strong> System Flowchart
+</p>
 
-This project demonstrates **real-time sensing, embedded automation, human detection, local UI design, and IoT communication** in a single device.
+### 🔥 Thermal Presence Detection (MLX90640)
 
-------
+Presence is inferred using an adaptive, statistics-based method rather than fixed thresholds:
 
-## ✨ Features
+- Compute global mean **μ** and standard deviation **σ** per 32×24 frame
+- Mark “hot” pixels by **z-score thresholding**
+- Aggregate into **8×6 blocks** to suppress isolated noise
+- Require global contrast check (**Tmax − μ**)
+- Apply **temporal smoothing** to stabilize decisions
 
-### 🔥 Human Presence Detection (MLX90640 Thermal Camera)
-
-- Reads a 32×24 thermal frame.
-- Computes frame average / max temperature dynamically.
-- Detects humans using:
-  - Hot-pixel count
-  - Temperature delta threshold
-- Robust to noise and background variations.
-
-### 🌬 Automatic + Remote Fan Control
-
-- Auto mode activates fan when:
-  - CO₂ > **5000 ppm**, or
-  - Temperature > **29°C**.
-- Remote mode overrides auto (via MQTT command).
-- Fan state and control source displayed clearly on the screen.
-
-### 🌡 Environmental Monitoring (SCD30)
-
-- Measures **CO₂**, **temperature**, and **humidity**.
-- Used for decision-making and screen display.
-- Included in MQTT JSON payloads.
-
-### ☀️ Light-Based Curtain Automation
-
-- Reads ambient light from an analog sensor.
-- Human present:
-  - Bright → open curtain (servo → 180°)
-  - Dim → close curtain (servo → 0°)
-- Human absent:
-  - Curtain remains unchanged.
-
-### 🔥 Fire Detection & Alarm
-
-- Fire sensor triggers alarm when HIGH.
-- Activates buzzer for **5 seconds**.
-- Fire status reflected on TFT display.
-
-### 🎧 Sound-Level Monitoring (Adaptive Baseline)
-
-- Smooth, noise-resistant measurement using:
-  - Fast averaging
-  - Adaptive baseline
-  - Exponential smoothing
-- Useful for noise alerting or ambient analysis.
-
-### 📺 High-Quality Local UI (TFT_eSPI)
-
-- Live dashboard with:
-  - Human presence
-  - CO₂ / temperature / humidity
-  - Light level
-  - Sound level
-- Bottom status bar with visual blocks:
-  - FAN / FIRE / SOUND / CURTAIN
-
-### 📡 MQTT JSON Telemetry + Remote Control
-
-- Periodic JSON payload includes all sensor & actuator states.
-
-- Publishes to:
-
-  ```
-  student/MUJI/HZH
-  ```
-
-- Remote fan command topic:
-
-  ```
-  student/MUJI/HZH/command/fan
-  ```
-
-- Accepts `"on"` / `"off"` commands from mobile apps, dashboards, or cloud services.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/Use Python to render thermal imaging images/thermal images.png" width="75%">
+  <br>
+  <strong>Figure 5.</strong> Use Python to render thermal imaging images
+</p>
 
 ------
 
-## 🛠 Hardware Components
+### 🌬 Automatic & Remote Fan Control
 
-| Component                              | Purpose                            |
-| -------------------------------------- | ---------------------------------- |
-| **Arduino MKR WiFi 1010**              | Main controller, WiFi connectivity |
-| **MLX90640 32×24 Thermal Camera**      | Human presence detection           |
-| **SCD30 CO₂ + Temp + Humidity sensor** | Indoor air quality monitoring      |
-| **Light sensor (LDR)**                 | Ambient light measurement          |
-| **Sound sensor**                       | Adaptive sound-level monitoring    |
-| **Flame sensor**                       | Fire detection                     |
-| **MG90S Servo**                        | Simulated curtain control          |
-| **5V Fan**                             | Auto / remote ventilation          |
-| **Passive buzzer**                     | 5-second fire alarm                |
-| **TFT_eSPI Display (480×320)**         | On-device dashboard UI             |
+Automatic mode runs only when presence is detected:
 
-------
+- Fan ON if **CO₂ > 5000 ppm** OR **Temperature > 29°C**
+- MQTT remote control can force ON/OFF using:
+  - Topic: `student/MUJI/HZH/command/fan`
+  - Payload: `"on"` / `"off"`
 
-## 📑 Firmware Summary
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/Remote control and monitoring interface.png" width="75%">
+  <br>
+  <strong>Figure 6.</strong> Remote control and monitoring interface
+</p>
 
-The firmware implements:
-
-### 1. Sensor Reading
-
-- MLX90640 thermal frame extraction.
-- SCD30 environmental data polling.
-- Light / sound analog readings.
-- Fire digital input.
-
-### 2. Human Detection Algorithm
-
-- Dynamic temperature thresholding.
-- Hot-pixel count.
-- Max/average difference validation.
-
-### 3. Environment-Based Automation
-
-- Fan auto-mode based on CO₂ + temperature.
-- Curtain logic based on light + presence.
-- Fire alarm handling with 5-second buzzer window.
-
-### 4. User Interface Rendering
-
-- Full-screen layout with:
-  - Main data panel
-  - Four status blocks
-
-### 5. MQTT Communication
-
-- Publishes telemetry JSON every loop.
-- Handles remote fan commands via callback.
-
-------
-
-## 📤 Example MQTT JSON Output
+Example JSON payload (remote monitoring):
 
 ```
 {
-  "presence": true,
-  "co2": 5420.32,
-  "temperature": 29.47,
-  "humidity": 45.10,
-  "fan": true,
+  "temperature": 29.1,
+  "humidity": 37.3,
+  "presence": false,
   "fan_source": "auto",
-  "light": 712,
-  "curtain": "open",
+  "fan": false,
   "fire": false,
-  "buzzer": false,
-  "sound_level": 37
+  "curtain": "unchanged",
+  "light": 332,
+  "co2": 1021.8
 }
+
+```
+
+------
+
+### 🖥 Local TFT Dashboard + MQTT Publishing
+
+The local TFT UI shows:
+
+- Presence status
+- CO₂ ppm
+- Temperature & Humidity
+- Light level
+- Status bar for **Fan / Fire / Sound / Curtain**
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/screen.jpg" width="75%">
+  <br>
+  <strong>Figure 6.</strong> Remote control and monitoring interface
+</p>
+
+------
+
+## 🚀 Installation & Usage
+
+### 1️⃣ Clone
+
+```
+git clone https://github.com/<your-username>/<your-repo>.git
+cd <your-repo>
+```
+
+### 2️⃣ Arduino Libraries
+
+Install these in Arduino IDE:
+
+- Adafruit MLX90640
+- Adafruit SCD30
+- TFT_eSPI
+- WiFiNINA
+- PubSubClient
+- Servo
+
+### 3️⃣ Configure WiFi + MQTT
+
+Edit in your Arduino sketch:
+
+```
+char ssid[] = "YOUR_WIFI";
+char pass[] = "YOUR_PASSWORD";
+
+const char* mqttServer = "mqtt.cetools.org";
+const int mqttPort = 1884;   // 📌 [TODO: confirm port in your code]
+```
+
+📌 **[TODO: Add instructions for setting MQTT username/password if used]**
+
+### 4️⃣ Upload & Run
+
+- Wire all sensors following the schematic
+- Upload sketch to **Arduino MKR WiFi 1010**
+- Verify TFT screen updates
+- Use an MQTT client (e.g. EasyMQTT) to publish fan commands
+
+------
+
+## 📂 Recommended Repository Structure
+
+```
+/assets          Photos, screenshots, GIFs
+/docs            Report (PDF) + diagrams
+/hardware        Fritzing schematic + wiring notes
+/src             Arduino code
+README.md
+LICENSE
 ```
 
 ------
 
-## ▶️ How to Run the Project
+## 📊 Evaluation Summary
 
-### 1. Install Required Arduino Libraries
+- Prototype achieved core objectives: sensing + control + MQTT monitoring
+- Low-power test: **2W power bank powered system for > 1 week**
+- All modules worked reliably in development environment
 
-- **Adafruit MLX90640**
-- **Adafruit SCD30**
-- **WiFiNINA**
-- **PubSubClient**
-- **TFT_eSPI**
-- **Servo**
-
-### 2. Configure TFT_eSPI
-
-Ensure `User_Setup_Select.h` selects the correct driver for your TFT display.
-
-### 3. Flash the Provided Firmware
-
-Upload the full `.ino` file (the one you provided).
-
-### 4. Connect to WiFi & MQTT
-
-The board will automatically:
-
-- Join your WiFi
-- Connect to `mqtt.cetools.org`
-- Subscribe to the fan command topic
-- Begin publishing telemetry
-
-### 5. Optional: Send Remote Commands
-
-Publish the following to control the fan:
-
-| Topic                          | Payload          |
-| ------------------------------ | ---------------- |
-| `student/MUJI/HZH/command/fan` | `"on"` / `"off"` |
+📌 **[TODO: Add a table of test cases + results if you want more “engineering-grade”]**
 
 ------
 
-## 📦 Folder Structure (recommended)
+## 🔧 Limitations & Future Work
 
-```
-SmartRoomDashboard/
-│
-├── firmware/
-│   └── SmartRoomDashboard.ino
-│
-├── docs/
-│   ├── system-architecture.png
-│   ├── wiring-diagram.png
-│   └── screenshots/
-│
-└── README.md
-```
+Limitations observed:
 
-------
+- Thermal detection can be affected by background heat sources and ambient temperature similarity
+- Thresholds are coarse and not universal across rooms/seasons
+- Too many modules reduce robustness (wiring looseness causes failures)
 
-## 🚀 Future Improvements
+Future improvements:
 
-- Add anomaly detection for thermal frames.
-- Integrate WebSocket real-time dashboard.
-- Add sleep/work/user profiles.
-- LTE/WiFi dual-network fallback.
-- Edge AI classification for improved presence detection.
-
-------
-
-## 📝 License
-
-This project is released under the MIT License.
- You may use, modify, and distribute it freely.
-
-------
-
-## 🙌 Acknowledgments
-
-Thanks to the open-source community and Adafruit libraries that made hardware integration possible.
+- Simplify sensing setup (reduce redundant hardware)
+- Replace fixed thresholds with adaptive logic
+- Collect data for lightweight ML-based decision rules
