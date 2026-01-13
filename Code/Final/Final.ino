@@ -7,10 +7,9 @@
 #include <TFT_eSPI.h>
 #include <SPI.h>
 
-char ssid[] = "5339 Hyperoptic Fibre Broadband";
-char pass[] = "3F38ikCLBkgT";
-// char ssid[] = "CE-Hub-Student"; 
-// char pass[] = "casa-ce-gagarin-public-service";
+char ssid[] = "";
+char pass[] = "";
+
 
 const char* mqttServer = "mqtt.cetools.org";
 const int mqttPort = 1884;

@@ -3,6 +3,11 @@
 
 **An IoT-based intelligent room monitoring and automation system powered by Arduino MKR WiFi 1010, thermal imaging, environmental sensors, local visualization, and MQTT integration.**
 
+<figure style="text-align: center;">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/appearance.jpg" width="75%">
+  <figcaption><strong>Figure 1.</strong> Physical Prototype Overview</figcaption>
+</figure>
+
 ------
 
 ## 📌 Overview

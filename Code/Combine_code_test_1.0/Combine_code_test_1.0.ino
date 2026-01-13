@@ -5,65 +5,50 @@
 #include <WiFiNINA.h>
 #include <PubSubClient.h>
 
-// ---------------- WiFi 配置 ----------------
-char ssid[] = "CE-Hub-Student";
-char pass[] = "casa-ce-gagarin-public-service";
+char ssid[] = "";
+char pass[] = "";
 
-// ---------------- MQTT 配置 ----------------
 const char* mqttServer = "mqtt.cetools.org";
 const int   mqttPort   = 1884;
 const char* mqttUser   = "student";
 const char* mqttPass   = "ce2021-mqtt-forget-whale";
 const char* mqttTopic  = "student/MUJI/HZH";
 
-// 远程控制风扇的指令 topic
 const char* mqttCmdFanTopic = "student/MUJI/HZH/command/fan";
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-// ========== 传感器对象 ==========
 Adafruit_MLX90640 mlx;
 Adafruit_SCD30  scd30;
 Servo curtainServo;
 
 float frame[32 * 24];
 
-// ========== 人体检测参数 ==========
 const float TEMP_DELTA_THRESHOLD = 3.5;
 const int   MIN_HOT_PIXELS       = 8;
 
-// ========== 风扇参数 ==========
 const int FAN_PIN = 7;
 
-// ========== 光照传感器 + 舵机参数 ==========
 const int LIGHT_PIN       = A1;
 const int LIGHT_THRESHOLD = 600;
 const int SERVO_PIN       = 6;
 
-// ========== 火焰传感器 ==========
 const int FLAME_PIN = 2;
 
-// ========== 蜂鸣器参数（无源，接 D5） ==========
-const int BUZZER_PIN = 5;   // 蜂鸣器 + 接 D5，- 接 GND
+const int BUZZER_PIN = 5;
 
-// ========== SCD30 缓存 ==========
 float latestCO2 = NAN;
 bool  hasCO2    = false;
 
-// 舵机角度（记录当前位置）
 int currentServoAngle = -1;
 
-// 蜂鸣器状态（火灾报警 5 秒）
 bool buzzerOn = false;
 unsigned long buzzerStartMillis = 0;
 bool lastFireDetected = false;
 
-// ========== 手机远程控制风扇模式 ==========
-// -1: 没有远程命令；0: 远程要求关；1: 远程要求开
 int remoteFanMode = -1;
 
-// ---------------- 人体检测函数 ----------------
 bool detectHuman(const float *f) {
   float sum  = 0.0;
   float minT = 1000.0;
@@ -96,7 +81,6 @@ bool detectHuman(const float *f) {
   return presence;
 }
 
-// ---------------- MQTT 回调：处理手机发来的指令 ----------------
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String t = String(topic);
   String msg;
@@ -121,7 +105,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-// ---------------- WiFi 连接 ----------------
 void connectWiFi() {
   Serial.print("Connecting to WiFi...");
   while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
@@ -131,7 +114,6 @@ void connectWiFi() {
   Serial.println(" connected!");
 }
 
-// ---------------- MQTT 连接 ----------------
 void connectMQTT() {
   mqttClient.setServer(mqttServer, mqttPort);
 
@@ -139,7 +121,6 @@ void connectMQTT() {
     Serial.print("Connecting to MQTT...");
     if (mqttClient.connect("MKR1010_client", mqttUser, mqttPass)) {
       Serial.println(" connected!");
-      // 连接成功后订阅控制风扇的命令 topic
       mqttClient.subscribe(mqttCmdFanTopic);
       Serial.print("Subscribed to: ");
       Serial.println(mqttCmdFanTopic);
@@ -151,7 +132,6 @@ void connectMQTT() {
   }
 }
 
-// ---------------- 初始化 ----------------
 void setup() {
   Serial.begin(115200);
   delay(2000);
@@ -181,20 +161,17 @@ void setup() {
   pinMode(LIGHT_PIN, INPUT);
   pinMode(FLAME_PIN, INPUT);
 
-  // 蜂鸣器（无源）引脚初始化
   pinMode(BUZZER_PIN, OUTPUT);
-  noTone(BUZZER_PIN);  // 确保一开始不响
+  noTone(BUZZER_PIN);
 
   curtainServo.attach(SERVO_PIN, 500, 2500);
   currentServoAngle = -1;
 }
 
-// ---------------- 主循环 ----------------
 void loop() {
   if (!mqttClient.connected()) connectMQTT();
   mqttClient.loop();
 
-  // 1. MLX90640 读帧
   int status = mlx.getFrame(frame);
   if (status != 0) {
     delay(250);
@@ -203,7 +180,6 @@ void loop() {
 
   bool human = detectHuman(frame);
 
-  // 2. SCD30 读数
   if (scd30.dataReady()) {
     scd30.read();
     latestCO2 = scd30.CO2;
@@ -216,19 +192,16 @@ void loop() {
     Serial.print("Humidity = "); Serial.println(scd30.relative_humidity);
   }
 
-  // 3. 风扇逻辑（有人 = 自动；无人 = 手机远程优先）
   bool fanOn = false;
   String fanSource = "auto";
 
   if (human) {
-    // 有人：只用自动逻辑，忽略远程命令，顺便清掉远程状态
     remoteFanMode = -1;
     if (hasCO2 && (latestCO2 > 5000.0 || scd30.temperature > 29.0)) {
       fanOn = true;
     }
     fanSource = "auto";
   } else {
-    // 无人：可以用手机控制
     if (remoteFanMode == 1) {
       fanOn = true;
       fanSource = "remote";
@@ -236,7 +209,6 @@ void loop() {
       fanOn = false;
       fanSource = "remote";
     } else {
-      // 没有发过命令 → 默认关闭
       fanOn = false;
       fanSource = "auto";
     }
@@ -248,7 +220,6 @@ void loop() {
   Serial.print("  source=");
   Serial.println(fanSource);
 
-  // 4. 光照逻辑（光照足 → open(180°)，光照低 → close(0°)）
   int lightRaw = analogRead(LIGHT_PIN);
   Serial.print("Light raw = "); Serial.println(lightRaw);
 
@@ -275,15 +246,13 @@ void loop() {
     Serial.println("No human: curtain stays.");
   }
 
-  // 5. 火焰检测
   bool fireDetected = (digitalRead(FLAME_PIN) == HIGH);
   Serial.print("Fire: "); Serial.println(fireDetected ? "YES" : "NO");
 
-  // 6. 蜂鸣器逻辑（无源）：检测到火源一次，响 5 秒（4kHz）
   if (fireDetected && !lastFireDetected) {
     buzzerOn = true;
     buzzerStartMillis = millis();
-    tone(BUZZER_PIN, 4000);  // 4kHz 警报声
+    tone(BUZZER_PIN, 4000);
     Serial.println("Buzzer: ON (fire detected, start 5s alarm)");
   }
 
@@ -297,7 +266,6 @@ void loop() {
 
   Serial.println("---------------------");
 
-  // ---------- SEND MQTT JSON ----------
   String payload = "{";
   payload += "\"presence\":" + String(human ? "true" : "false") + ",";
   payload += "\"co2\":" + String(latestCO2, 2) + ",";

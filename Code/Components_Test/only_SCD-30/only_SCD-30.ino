@@ -36,5 +36,5 @@ void loop() {
     Serial.println("Waiting for measurement...");
   }
 
-  delay(2000);  // SCD30 默认 2 秒更新一次
+  delay(2000);  
 }
