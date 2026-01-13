@@ -3,20 +3,24 @@
 # 🏡 HomeCare Assist  
 
 Smart-Home Prototype for Elderly Comfort & Safety  
+
 > A lightweight Arduino-based system for indoor comfort monitoring and automated actuation.
 
 ---
 
 ## ✨ Overview  
+
 **HomeCare Assist** is a room-level smart prototype designed to support **elderly individuals living alone**, helping them maintain a safer and more comfortable indoor environment—**without cameras, wearables, or user intervention**.
 
 The system continuously monitors:
+
 - Indoor **CO₂ / temperature / humidity**
 - Indoor & outdoor **light levels**
 - **Thermal-based occupancy** 
 - Potential **fire hazards**
 
 And automatically:
+
 - Opens/closes curtains based on natural light
 - Activates ventilation when air quality/temperature rises
 - Triggers alarms when fire is detected
@@ -31,6 +35,7 @@ And automatically:
 ---
 
 ## 🧩 Key Features  
+
 - ✅ Privacy-friendly **thermal presence detection** (no camera)
 - ✅ Real-time **multi-sensor monitoring**
 - ✅ **Automatic ventilation & curtain control**
@@ -41,6 +46,7 @@ And automatically:
 ---
 
 ## 🛠 Hardware Used  
+
 | Component                       | Purpose                                 |
 | ------------------------------- | --------------------------------------- |
 | Arduino MKR WiFi 1010           | Main controller, WiFi connectivity      |
@@ -149,9 +155,9 @@ The local TFT UI shows:
 - Status bar for **Fan / Fire / Sound / Curtain**
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/screen.jpg" width="75%">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/screen1.jpg" width="75%">
   <br>
-  <strong>Figure 6.</strong> Remote control and monitoring interface
+  <strong>Figure 7.</strong> TFT Dashboard
 </p>
 
 ------
@@ -161,9 +167,12 @@ The local TFT UI shows:
 ### 1️⃣ Clone
 
 ```
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
+git clone https://github.com/xms12138/CASA0016_Smart-Home.git
 ```
+
+The complete code of this system is located in the 
+
+["Final"]: https://github.com/xms12138/CASA0016_Smart-Home/tree/main/Code/Fina	"."
 
 ### 2️⃣ Arduino Libraries
 
@@ -184,11 +193,9 @@ Edit in your Arduino sketch:
 char ssid[] = "YOUR_WIFI";
 char pass[] = "YOUR_PASSWORD";
 
-const char* mqttServer = "mqtt.cetools.org";
-const int mqttPort = 1884;   // 📌 [TODO: confirm port in your code]
+const char* mqttServer = "Your_Server";
+const int mqttPort = "Your_Port";
 ```
-
-📌 **[TODO: Add instructions for setting MQTT username/password if used]**
 
 ### 4️⃣ Upload & Run
 
