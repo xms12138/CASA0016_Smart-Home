@@ -2,9 +2,9 @@
 
 # 🏡 HomeCare Assist  
 
-Smart-Home Prototype for Elderly Comfort & Safety  
+**Smart-Home Prototype for Elderly Comfort & Safety**  
 
-> A lightweight Arduino-based system for indoor comfort monitoring and automated actuation.
+A lightweight Arduino-based system for indoor comfort monitoring and automated actuation.
 
 ---
 
@@ -42,6 +42,74 @@ And automatically:
 - ✅ **MQTT remote supervision + manual override**
 - ✅ Local **TFT dashboard UI**
 - ✅ Low-power design (suitable for standalone power bank)
+
+------
+
+## 🚀 Installation & Usage
+
+### 1️⃣ Clone
+
+```
+git clone https://github.com/xms12138/CASA0016_Smart-Home.git
+```
+
+**The complete code of this system is located in the [Final](https://github.com/xms12138/CASA0016_Smart-Home/tree/main/Code/Final). If you just want to give it a try, all you need to do is run this code.**
+
+**Individual debugging sketches for each component are available in the [Components_Test](https://github.com/xms12138/CASA0016_Smart-Home/tree/main/Code/Components_Test) folder and can be run independently if required.**
+
+### 2️⃣ Arduino Libraries
+
+Install these in Arduino IDE:
+
+- Adafruit MLX90640
+- Adafruit SCD30
+- TFT_eSPI
+- WiFiNINA
+- PubSubClient
+- Servo
+
+### 3️⃣ Configure WiFi + MQTT
+
+Edit in your Arduino sketch:
+
+```
+char ssid[] = "YOUR_WIFI";
+char pass[] = "YOUR_PASSWORD";
+
+const char* mqttServer = "Your_Server";
+const int mqttPort = "Your_Port";
+```
+
+### 4️⃣ Upload & Run
+
+- Wire all sensors following the schematic
+- Upload sketch to **Arduino MKR WiFi 1010**
+- Verify TFT screen updates
+- Use an MQTT client (e.g. EasyMQTT) to publish fan commands
+
+------
+
+## 📂 Recommended Repository Structure
+
+```
+CASA0016_Smart-Home/
+│
+├── 3D-Printer/    – 3D model files for the device enclosure and printed parts
+│
+├── Code/          – Arduino firmware and source code for sensors, actuators and MQTT
+│
+├── Picture/       – Photos, wiring images, UI screenshots and documentation images
+│
+└── website/       – Web dashboard (HTML/CSS/JS) for visualizing device data
+
+```
+
+Each folder corresponds to a core part of the smart home prototype:
+
+- **3D-Printer** → physical housing & printed components
+- **Code** → main hardware logic running on the microcontroller
+- **Picture** → project images and build documentation
+- **website** → the browser-based dashboard for monitoring
 
 ---
 
@@ -168,70 +236,11 @@ The local TFT UI shows:
 
 ------
 
-## 🚀 Installation & Usage
-
-### 1️⃣ Clone
-
-```
-git clone https://github.com/xms12138/CASA0016_Smart-Home.git
-```
-
-**The complete code of this system is located in the [Final](https://github.com/xms12138/CASA0016_Smart-Home/tree/main/Code/Final). If you just want to give it a try, all you need to do is run this code.**
-
-**Individual debugging sketches for each component are available in the [Components_Test](https://github.com/xms12138/CASA0016_Smart-Home/tree/main/Code/Components_Test) folder and can be run independently if required.**
-
-### 2️⃣ Arduino Libraries
-
-Install these in Arduino IDE:
-
-- Adafruit MLX90640
-- Adafruit SCD30
-- TFT_eSPI
-- WiFiNINA
-- PubSubClient
-- Servo
-
-### 3️⃣ Configure WiFi + MQTT
-
-Edit in your Arduino sketch:
-
-```
-char ssid[] = "YOUR_WIFI";
-char pass[] = "YOUR_PASSWORD";
-
-const char* mqttServer = "Your_Server";
-const int mqttPort = "Your_Port";
-```
-
-### 4️⃣ Upload & Run
-
-- Wire all sensors following the schematic
-- Upload sketch to **Arduino MKR WiFi 1010**
-- Verify TFT screen updates
-- Use an MQTT client (e.g. EasyMQTT) to publish fan commands
-
-------
-
-## 📂 Recommended Repository Structure
-
-```
-/assets          Photos, screenshots, GIFs
-/docs            Report (PDF) + diagrams
-/hardware        Fritzing schematic + wiring notes
-/src             Arduino code
-README.md
-LICENSE
-```
-
-------
-
 ## 📊 Evaluation Summary
 
 - Prototype achieved core objectives: sensing + control + MQTT monitoring
-- Low-power test: **2W power bank powered system for > 1 week**
+- Low-power test: **20,000 milliampere power bank powered system for > 1 week**
 - All modules worked reliably in development environment
-
-📌 **[TODO: Add a table of test cases + results if you want more “engineering-grade”]**
 
 ------
 
@@ -248,3 +257,26 @@ Future improvements:
 - Simplify sensing setup (reduce redundant hardware)
 - Replace fixed thresholds with adaptive logic
 - Collect data for lightweight ML-based decision rules
+
+------
+
+## 📄 License  
+
+This project is released under the MIT License.
+
+------
+
+## 📄References
+
+Bouazizi, M., Ye, C. and Ohtsuki, T. (2022) ‘Low-resolution infrared array sensor for counting and localizing people indoors: When low end technology meets cutting edge deep learning techniques’, *Information*, 13(3), 132. doi:10.3390/info13030132.
+
+ Du, B. et al. (2020) ‘Indoor CO₂ concentrations and cognitive function: A critical review’, *Indoor Air*, 30(6), pp. 1005–1016. Available at: [https://pubmed.ncbi.nlm.nih.gov/32557862/](https://pubmed.ncbi.nlm.nih.gov/32557862/?utm_source=chatgpt.com)
+
+ Fan, Y. et al. (2023) ‘Short-term exposure to indoor carbon dioxide and human cognitive performance’, *Building and Environment*, 243, 110682. Available at: [https://www.sciencedirect.com/science/article/pii/S036013232300358X](https://www.sciencedirect.com/science/article/pii/S036013232300358X?utm_source=chatgpt.com)
+
+ Lin, Y. and Zhao, Q. (2025) ‘Human occupancy monitoring and positioning with speed-responsive adaptive sliding window using an infrared thermal array sensor’, *Sensors*, 25(1), 129. doi:10.3390/s25010129.
+
+ Jo, T.H., Ma, J.H. and Cha, S.H. (2021) ‘Elderly perception on the Internet of Things-based integrated smart-home system’, *Sensors*, 21(4), 1284. Available at: [https://www.mdpi.com/1424-8220/21/4/1284](https://www.mdpi.com/1424-8220/21/4/1284?utm_source=chatgpt.com)
+
+ Wang, Y., Zhang, X., Zhang, Y. and Wang, K. (2021) ‘Multisensor fusion in smart buildings: A review’, *Automation in Construction*, 125, 103600. Available at: https://www.sciencedirect.com/science/article/pii/S0926580521001791
+
