@@ -144,7 +144,7 @@ Example JSON payload (remote monitoring):
 
 ------
 
-### 🖥 Local TFT Dashboard + MQTT Publishing
+### 🖥 Local TFT Dashboard + Website page
 
 The local TFT UI shows:
 
@@ -160,6 +160,12 @@ The local TFT UI shows:
   <strong>Figure 7.</strong> TFT Dashboard
 </p>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xms12138/CASA0016_Smart-Home/main/Picture/website.png" width="75%">
+  <br>
+  <strong>Figure 8.</strong> Website Page
+</p>
+
 ------
 
 ## 🚀 Installation & Usage
@@ -170,9 +176,9 @@ The local TFT UI shows:
 git clone https://github.com/xms12138/CASA0016_Smart-Home.git
 ```
 
-The complete code of this system is located in the 
+**The complete code of this system is located in the [Final](https://github.com/xms12138/CASA0016_Smart-Home/tree/main/Code/Final). If you just want to give it a try, all you need to do is run this code.**
 
-["Final"]: https://github.com/xms12138/CASA0016_Smart-Home/tree/main/Code/Fina	"."
+**Individual debugging sketches for each component are available in the [Components_Test](https://github.com/xms12138/CASA0016_Smart-Home/tree/main/Code/Components_Test) folder and can be run independently if required.**
 
 ### 2️⃣ Arduino Libraries
 
